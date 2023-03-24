@@ -176,3 +176,44 @@ LEFT JOIN members m
 WHERE order_date < '2021-02-01' #exclude months after jan
 GROUP BY customer_id
 ;
+
+
+-- BONUS QUESTION
+-- Recreate the following table output using the available data:(join all the things)
+SELECT s.customer_id, order_date, menu.product_name, menu.price, 
+CASE
+  WHEN s.order_date >= '2021-01-07' AND m.join_date IS NOT NULL THEN 'Y' 
+  WHEN s.order_date >= '2021-01-09' AND m.join_date IS NOT NULL THEN 'Y'
+    ELSE 'N'
+END AS member
+FROM sales s
+LEFT JOIN menu 
+  ON s.product_id = menu.product_id
+LEFT JOIN members m
+  ON s.customer_id = m.customer_id;
+
+-- Rank all the things
+/* Danny also requires further information about the ranking of customer products, 
+but he purposely does not need the ranking for non-member purchases so he expects null 
+ranking values for the records when customers are not yet part of the loyalty program. */
+
+WITH cte AS
+  (SELECT s.customer_id, order_date, menu.product_name, menu.price, 
+    CASE
+      WHEN s.order_date >= '2021-01-07' AND m.join_date IS NOT NULL THEN 'Y' 
+      WHEN s.order_date >= '2021-01-09' AND m.join_date IS NOT NULL THEN 'Y'
+      ELSE 'N'
+    END AS member
+  FROM sales s
+  LEFT JOIN menu 
+    ON s.product_id = menu.product_id
+  LEFT JOIN members m
+    ON s.customer_id = m.customer_id)
+SELECT *, 
+  CASE
+    WHEN member = 'N' THEN NULL 
+    ELSE RANK() OVER w
+  END AS ranking
+FROM cte
+WINDOW w AS (PARTITION BY s.customer_id, member ORDER BY s.order_date)
+
